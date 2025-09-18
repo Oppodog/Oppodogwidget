@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Oppo Jupiter Ultra Swap Widget</title>
+  <link rel="icon" href="https://photos.pinksale.finance/file/pinksale-logo-upload/1733923962272-6c08b5b4359a38ef4991bd3d69dc1c3d.png" />
+  <style>
+    :root {
+      --bg:#0d1117; --panel:#161b22; --accent:#ffbf3c; --accent-grad:linear-gradient(90deg,#ffbf3c,#ff8f1f);
+      --text:#f0f6fc; --text-dim:#9ca3af; --danger:#f87171; --success:#4ade80; --warn:#fbbf24; --radius:14px;
+      --font: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:var(--font); background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+    header { padding:1rem clamp(1rem,3vw,2rem); display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+    h1 { font-size:clamp(1.1rem,2vw,1.4rem); margin:0; background:var(--accent-grad); -webkit-background-clip:text; color:transparent; font-weight:600; }
+    .tag { background:var(--panel); padding:.35rem .65rem; border-radius:999px; font-size:.7rem; letter-spacing:.5px; text-transform:uppercase; color:var(--text-dim); }
+    main { padding:0 clamp(1rem,3vw,2.5rem); max-width:1280px; margin:0 auto; }
+    .grid { display:grid; grid-template-columns:1fr 340px; gap:1.75rem; }
+    @media (max-width:1100px){ .grid { grid-template-columns:1fr; } }
+    section { background:var(--panel); border:1px solid #262f3c; padding:1.25rem 1.25rem 1.75rem; border-radius:var(--radius); position:relative; }
+    section h2 { margin:0 0 .75rem; font-size:1rem; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:var(--text-dim); }
+    code, pre { font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:.8rem; }
+    pre { background:#1e2530; padding:.85rem 1rem; border-radius:10px; overflow:auto; }
+    button { cursor:pointer; font:inherit; border:none; border-radius:10px; padding:.7rem .95rem; background:var(--accent-grad); color:#121212; font-weight:600; transition:.2s box-shadow,.2s transform; }
+    button:hover { box-shadow:0 0 0 3px #ffbf3c33; }
+    button:active { transform:translateY(2px); }
+    .status-list { list-style:none; margin:0; padding:0; display:grid; gap:.5rem; font-size:.8rem; }
+    .status-list li { background:#1e2530; padding:.55rem .7rem; border-radius:8px; display:flex; justify-content:space-between; gap:1rem; }
+    .pill { padding:.25rem .55rem; border-radius:6px; font-weight:600; }
+    .pill.ok { background:#16391f; color:var(--success); }
+    .pill.wait { background:#43380d; color:var(--warn); }
+    .pill.err { background:#3b1313; color:var(--danger); }
+    footer { text-align:center; padding:2rem 1rem 3rem; font-size:.7rem; color:var(--text-dim); }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .widget-shell { min-height:560px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Oppo Jupiter Ultra Swap Widget</h1>
+    <span class="tag">DEMO</span>
+    <span class="tag" id="fee-bps-tag">FEE 0.2%</span>
+  </header>
+  <main>
+    <div class="grid">
+      <section class="widget-shell">
+        <h2>Widget</h2>
+        <div id="target-container"></div>
+        <noscript>Enable JavaScript to load Jupiter widget.</noscript>
+      </section>
+      <section>
+        <h2>Referral & Fee Monitor</h2>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.75rem;">
+          <button id="btn-refresh">Check Unclaimed Fees</button>
+          <button id="btn-simulate">Simulate Fee Incur</button>
+          <button id="btn-claim">Attempt Auto-Claim</button>
+        </div>
+        <ul class="status-list" id="status-log"></ul>
+      </section>
+    </div>
+  </main>
+  <footer>
+    <p>Powered by <a href="https://jup.ag" target="_blank" rel="noopener">Jupiter</a>. This is a demo scaffold; do not use for production until audited.</p>
+  </footer>
+  <script src="https://plugin.jup.ag/plugin-v1.js" defer></script>
+  <script>
+    // --- Configuration (mirror README) ---
+    const REFERRAL_CONFIG = {
+      feeBps: 20, // 0.2%
+      feeRecipient: "9EvV3V9cZ4KktQ4xCnu3ymA2a9qgaBR4HLFhFddZZXSn",
+      supportedMints: new Map([
+        ["So11111111111111111111111111111111111111112", "SOL"],
+        ["Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "USDT"],
+        ["EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "USDC"],
+        ["JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB", "JUP"],
+        ["4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R", "RAY"],
+        ["mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", "mSOL"],
+        ["JUPSoLa9DF2MBd1wqvd832eFF1gdT1t9NXQziQ3Q65K", "JupSOL"],
+        ["sSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", "SSOL"],
+        ["JitoSoLAzCwQTv3JdGXPPUWX7dBDEqtfqzVN4fAAhqh", "JitoSOL"],
+        ["7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963z3Mw", "ETH"],
+        ["7XSb7qQ58NsL3rgoF7i9QEaWaxMcY5GAPJc8dJgtG8h3", "EURC"],
+        ["USDGcz7M9Xzb1v9VssGkBDwNw2mYjX4gPW3sWzi6dB1", "USDG"],
+        ["7hRz2Gj4LnpZ7ytXvPj5F8fs6rZBMdfEGc9Jz4RFu1Qk", "PUMP"],
+      ])
+    };
+
+    const ui = {
+      log: document.getElementById('status-log'),
+      refreshBtn: document.getElementById('btn-refresh'),
+      claimBtn: document.getElementById('btn-claim'),
+      simulateBtn: document.getElementById('btn-simulate'),
+    };
+
+    function addLog(msg, status = 'ok'){ const li = document.createElement('li'); li.innerHTML = `<span>${new Date().toLocaleTimeString()} - ${msg}</span>` + `<span class="pill ${status}">${status}</span>`; ui.log.prepend(li);}    
+
+    // Demo local state (not real chain interaction)
+    let unclaimedUSDValue = 0;
+
+    function isTokenSupported(mint){ return REFERRAL_CONFIG.supportedMints.has(mint); }
+    function getTokenSymbol(mint){ return REFERRAL_CONFIG.supportedMints.get(mint) || 'UNKNOWN'; }
+
+    async function handleUltraReferralFee(fakeSignature){
+      // In production, you'd verify the transaction and parse swap logs.
+      addLog(`Referral fee recorded for tx ${fakeSignature.slice(0,8)}…`,'wait');
+      // Simulate accrual
+      const delta = (Math.random() * 0.4 + 0.1); // $0.10 - $0.50
+      unclaimedUSDValue += delta;
+      addLog(`Accrued ~$${delta.toFixed(2)} (unclaimed: $${unclaimedUSDValue.toFixed(2)})`,'ok');
+      return { delta, total: unclaimedUSDValue };
+    }
+
+    async function checkUnclaimedFees(){
+      addLog(`Unclaimed fee value ~ $${unclaimedUSDValue.toFixed(2)}`,'ok');
+      return unclaimedUSDValue;
+    }
+
+    async function attemptAutoClaim(){
+      if(unclaimedUSDValue < 1){
+        addLog('Below $1 threshold - cannot claim yet','err');
+        return false;
+      }
+      addLog('Claim transaction submitted…','wait');
+      await new Promise(r=>setTimeout(r, 900));
+      addLog(`Claim succeeded ($${unclaimedUSDValue.toFixed(2)})`,'ok');
+      unclaimedUSDValue = 0;
+      return true;
+    }
+
+    window.OppoConfig = { handleUltraReferralFee, checkUnclaimedFees, attemptAutoClaim, isTokenSupported, getTokenSymbol };
+
+    function initWidget(){
+      if(!window.Jupiter){ return requestAnimationFrame(initWidget); }
+      window.Jupiter.init({
+        displayMode: 'integrated',
+        integratedTargetId: 'target-container',
+        feeBps: REFERRAL_CONFIG.feeBps,
+        feeRecipient: REFERRAL_CONFIG.feeRecipient,
+        strictTokenList: false,
+        formProps: { initialInputMint: 'So11111111111111111111111111111111111111112' },
+        onSwapSuccess: async (tx) => {
+          addLog('Swap success: processing referral','wait');
+          await handleUltraReferralFee(tx.signature || tx.txid || 'demoTx');
+        },
+        onSwapError: (e) => addLog('Swap error: '+ (e?.message||'Unknown'),'err'),
+        branding: {
+          name: 'Oppo',
+          logoUri: 'https://photos.pinksale.finance/file/pinksale-logo-upload/1733923962272-6c08b5b4359a38ef4991bd3d69dc1c3d.png'
+        }
+      });
+      addLog('Jupiter widget initialized');
+    }
+    initWidget();
+
+    ui.refreshBtn.onclick = ()=> checkUnclaimedFees();
+    ui.simulateBtn.onclick = ()=> handleUltraReferralFee('demoSignature'+Math.random().toString(36).slice(2,8));
+    ui.claimBtn.onclick = ()=> attemptAutoClaim();
+  </script>
+</body>
+</html>
